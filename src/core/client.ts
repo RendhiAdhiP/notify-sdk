@@ -16,7 +16,6 @@ import { AuthManager } from "./auth"
 import { ReconnectionManager } from "./reconnection"
 import { EventHandler } from "../handlers"
 import { NotificationLogger } from "../utils/logger"
-import { generatePrivateRoom } from "../utils/helpers"
 
 export class NotificationClient {
   private socket: Socket | null = null
@@ -27,7 +26,6 @@ export class NotificationClient {
   private logger: NotificationLogger
   private state: ConnectionState = "disconnected"
   private joinedRooms = new Set<string>()
-  private privateRoom: string
   private destroyed = false
   private connectPromise: Promise<void> | null = null
   private isBrowser: boolean
@@ -38,7 +36,6 @@ export class NotificationClient {
     this.reconnectionManager = new ReconnectionManager(config.reconnection)
     this.eventHandler = new EventHandler()
     this.logger = new NotificationLogger(config.logger)
-    this.privateRoom = generatePrivateRoom()
     this.isBrowser = typeof window !== "undefined" && typeof document !== "undefined"
 
     this.reconnectionManager.onReconnectAttempt = (attempt, delay) => {
@@ -195,20 +192,34 @@ export class NotificationClient {
   }
 
   join(destination: string, channel: string, userUniqueCode?: string): void {
-    const room = `${destination}:${channel}${userUniqueCode ? `:${userUniqueCode}` : ""}`
-    this.joinedRooms.add(room)
+    const rooms: string[] = [`${destination}:${channel}`]
 
-    if (this.socket?.connected) {
-      this.socket.emit("join-room", room)
+    if (userUniqueCode) {
+      rooms.push(`${destination}:${channel}:${userUniqueCode}`)
+    }
+
+    for (const room of rooms) {
+      this.joinedRooms.add(room)
+
+      if (this.socket?.connected) {
+        this.socket.emit("join-room", room)
+      }
     }
   }
 
   leave(destination: string, channel: string, userUniqueCode?: string): void {
-    const room = `${destination}:${channel}${userUniqueCode ? `:${userUniqueCode}` : ""}`
-    this.joinedRooms.delete(room)
+    const rooms: string[] = [`${destination}:${channel}`]
 
-    if (this.socket?.connected) {
-      this.socket.emit("leave-room", room)
+    if (userUniqueCode) {
+      rooms.push(`${destination}:${channel}:${userUniqueCode}`)
+    }
+
+    for (const room of rooms) {
+      this.joinedRooms.delete(room)
+
+      if (this.socket?.connected) {
+        this.socket.emit("leave-room", room)
+      }
     }
   }
 
@@ -277,7 +288,8 @@ export class NotificationClient {
         channels,
         origin: this.authManager.getOrigin(),
         user_unique_code: userUniqueCode,
-        private: this.privateRoom,
+        private: `${this.authManager.getOrigin()}:all:${userUniqueCode}`,
+        public: `${this.authManager.getOrigin()}:all`,
       })
 
       setTimeout(() => {
