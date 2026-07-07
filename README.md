@@ -18,7 +18,7 @@ Membungkus komunikasi Socket.io dengan API yang sederhana, type-safe, dan framew
 ## Instalasi
 
 ```bash
-npm install git+ssh://git@github.com/your-org/notification-sdk.git
+npm install git+ssh:github.com/RendhiAdhiP/notify-sdk/notification-sdk.git
 ```
 
 Atau dari local package (development):
