@@ -1,0 +1,2 @@
+export { NotificationClient } from './core/client';
+export type { NotificationClientConfig, ReconnectionConfig, Logger, ConnectionState, NotificationEventMap, NotificationEventName, NotificationEventListener, NotificationPayload, NotificationMeta, GetNotificationsRequest, GetNotificationsResponse, ChannelGroup, DateGroup, MarkReadRequest, MarkAllReadRequest, MarkDeleteRequest, ApiResponse, } from './types';

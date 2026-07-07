@@ -1,0 +1,38 @@
+import { NotificationClientConfig, ConnectionState, GetNotificationsResponse, ApiResponse, NotificationEventName, NotificationEventListener } from '../types';
+export declare class NotificationClient {
+    private socket;
+    private config;
+    private authManager;
+    private reconnectionManager;
+    private eventHandler;
+    private logger;
+    private state;
+    private joinedRooms;
+    private destroyed;
+    private connectPromise;
+    private isBrowser;
+    constructor(config: NotificationClientConfig);
+    get connectionState(): ConnectionState;
+    get serverUrl(): string;
+    get origin(): string;
+    private setState;
+    private cleanupSocket;
+    connect(): Promise<void>;
+    private handleReconnect;
+    private rejoinRooms;
+    disconnect(): Promise<void>;
+    destroy(): Promise<void>;
+    join(destination: string, channel: string, userUniqueCode?: string): void;
+    leave(destination: string, channel: string, userUniqueCode?: string): void;
+    leaveAll(): void;
+    on<E extends NotificationEventName>(event: E, listener: NotificationEventListener<E>): () => void;
+    off<E extends NotificationEventName>(event: E, listener: NotificationEventListener<E>): void;
+    getNotifications(channels: string[], userUniqueCode: string): Promise<GetNotificationsResponse>;
+    markAsRead(notifId: string, userId: string, origin?: string): Promise<ApiResponse>;
+    markAllAsRead(notifIds: string[], userId: string, origin?: string): Promise<ApiResponse>;
+    markAsDelete(notifId: string, userId: string, origin?: string): Promise<ApiResponse>;
+    private getHttpBaseUrl;
+    private httpPost;
+    setProjectToken(token: string): void;
+    setOrigin(origin: string): void;
+}
