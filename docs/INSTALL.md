@@ -8,9 +8,9 @@
 ## Install dari Git Private Repository
 
 ```bash
-npm install git+ssh://git@github.com/your-org/notification-sdk.git
+npm install git+ssh://git@github.com/RendhiAdhiP/notify-sdk/.git
 # atau
-npm install git+https://github.com/your-org/notification-sdk.git
+npm install git+https://github.com/RendhiAdhiP/notify-sdk/.git
 ```
 
 ## Install dari Local Package (Development)
