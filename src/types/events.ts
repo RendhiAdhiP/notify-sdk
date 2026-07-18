@@ -1,15 +1,15 @@
-import type { NotificationPayload } from "./notification"
+import type { RWSPayload } from "./notification"
 
-export type NotificationEventMap = {
+export type RWSEventMap = {
   connect: () => void
   disconnect: (reason: string) => void
   reconnecting: (attempt: number) => void
   reconnected: () => void
   error: (error: Error) => void
-  notification: (notification: NotificationPayload) => void
+  notification: (notification: RWSPayload) => void
 }
 
-export type NotificationEventName = keyof NotificationEventMap
+export type RWSEventName = keyof RWSEventMap
 
-export type NotificationEventListener<E extends NotificationEventName> =
-  NotificationEventMap[E]
+export type RWSEventListener<E extends RWSEventName> =
+  RWSEventMap[E]

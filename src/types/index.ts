@@ -1,19 +1,19 @@
 export type {
-  NotificationClientConfig,
+  RWSConfig,
   ReconnectionConfig,
   Logger,
   ConnectionState,
 } from "./config"
 
 export type {
-  NotificationEventMap,
-  NotificationEventName,
-  NotificationEventListener,
+  RWSEventMap,
+  RWSEventName,
+  RWSEventListener,
 } from "./events"
 
 export type {
-  NotificationPayload,
-  NotificationMeta,
+  RWSPayload,
+  RWSNotificationMeta,
   GetNotificationsRequest,
   GetNotificationsResponse,
   ChannelGroup,

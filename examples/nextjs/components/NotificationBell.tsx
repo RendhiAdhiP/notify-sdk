@@ -77,7 +77,7 @@ export function NotificationBell({ userId }: Props) {
               <div
                 key={notif._id}
                 className={`p-3 border-b hover:bg-gray-50 cursor-pointer ${
-                  !notif.isRead ? "bg-blue-50" : ""
+                  !notif.is_read ? "bg-blue-50" : ""
                 }`}
                 onClick={() => markAsRead(notif._id)}
               >
@@ -86,7 +86,7 @@ export function NotificationBell({ userId }: Props) {
                   {notif.message}
                 </div>
                 <div className="text-xs text-gray-400 mt-1">
-                  {new Date(notif.createdAt).toLocaleString()}
+                  {new Date(notif.created_at).toLocaleString()}
                 </div>
               </div>
             ))

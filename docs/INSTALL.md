@@ -5,12 +5,16 @@
 - Node.js >= 18
 - npm atau yarn
 
-## Install dari Git Private Repository
+## Install dari Private Repository
 
 ```bash
-npm install git+https://git@github.com/RendhiAdhiP/notify-sdk/.git
-# atau
-npm install git+https://github.com/RendhiAdhiP/notify-sdk/.git
+npm install github:RendhiAdhiP/notify-sdk
+```
+
+Package akan terinstall sebagai `rws-sdk`. Import class `RWSClient`:
+
+```typescript
+import { RWSClient } from "rws-sdk"
 ```
 
 ## Install dari Local Package (Development)
@@ -26,7 +30,7 @@ Atau di `package.json`:
 ```json
 {
   "dependencies": {
-    "notification-sdk": "file:../notification-sdk"
+    "rws-sdk": "file:../notification-sdk"
   }
 }
 ```

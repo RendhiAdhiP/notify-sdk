@@ -1,7 +1,7 @@
 import type { Logger } from "../types"
 import { DEFAULT_LOGGER } from "../config/default"
 
-export class NotificationLogger {
+export class RWSLogger {
   private logger: Logger
 
   constructor(logger?: Partial<Logger>) {
@@ -9,18 +9,18 @@ export class NotificationLogger {
   }
 
   info(...args: unknown[]) {
-    this.logger.info(`[NotificationSDK]`, ...args)
+    this.logger.info(`[RWSSDK]`, ...args)
   }
 
   warn(...args: unknown[]) {
-    this.logger.warn(`[NotificationSDK]`, ...args)
+    this.logger.warn(`[RWSSDK]`, ...args)
   }
 
   error(...args: unknown[]) {
-    this.logger.error(`[NotificationSDK]`, ...args)
+    this.logger.error(`[RWSSDK]`, ...args)
   }
 
   debug(...args: unknown[]) {
-    this.logger.debug(`[NotificationSDK]`, ...args)
+    this.logger.debug(`[RWSSDK]`, ...args)
   }
 }

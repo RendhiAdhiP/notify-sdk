@@ -1,11 +1,11 @@
 # API Reference
 
-## NotificationClient
+## RWSClient
 
 ### Constructor
 
 ```typescript
-new NotificationClient(config: NotificationClientConfig)
+new RWSClient(config: RWSConfig)
 ```
 
 ### Properties
@@ -19,16 +19,16 @@ new NotificationClient(config: NotificationClientConfig)
 ### Methods
 
 #### `connect(): Promise<void>`
-Membuka koneksi WebSocket ke server. Otomatis dipanggil jika `autoConnect: true`.
+Membuka koneksi WebSocket ke server. Otomatis dipanggil jika `autoConnect: true`. Hanya berfungsi di browser (me-reject di server-side).
 
 #### `disconnect(): Promise<void>`
-Menutup koneksi WebSocket.
+Menutup koneksi WebSocket dan menghapus semua room.
 
 #### `destroy(): Promise<void>`
 Menutup koneksi dan menghapus semua event listener.
 
 #### `join(destination: string, channel: string, userUniqueCode?: string): void`
-Subscribe ke channel notifikasi. Room akan dibuat dengan format `destination:channel[:userUniqueCode]`.
+Subscribe ke channel notifikasi. Room akan dibuat dengan format `destination:channel[:userUniqueCode]`. Jika sudah terkoneksi, langsung emit `room:join`.
 
 #### `leave(destination: string, channel: string, userUniqueCode?: string): void`
 Unsubscribe dari channel notifikasi.
@@ -43,16 +43,16 @@ Subscribe ke event SDK. Mengembalikan fungsi unsubscribe.
 Hapus listener dari event.
 
 #### `getNotifications(channels: string[], userUniqueCode: string): Promise<GetNotificationsResponse>`
-Fetch semua notifikasi untuk channel dan user tertentu via WebSocket.
+Fetch semua notifikasi untuk channel dan user tertentu via WebSocket. Request dikirim dengan event `notification:list`, response diterima via event `notification:list`.
 
 #### `markAsRead(notifId: string, userId: string, origin?: string): Promise<ApiResponse>`
-Tandai notifikasi sebagai sudah dibaca.
+Tandai notifikasi sebagai sudah dibaca via HTTP POST.
 
 #### `markAllAsRead(notifIds: string[], userId: string, origin?: string): Promise<ApiResponse>`
-Tandai beberapa notifikasi sebagai sudah dibaca.
+Tandai beberapa notifikasi sebagai sudah dibaca via HTTP POST.
 
 #### `markAsDelete(notifId: string, userId: string, origin?: string): Promise<ApiResponse>`
-Tandai notifikasi sebagai dihapus (soft delete).
+Tandai notifikasi sebagai dihapus (soft delete) via HTTP POST.
 
 #### `setProjectToken(token: string): void`
 Update project token.
@@ -68,20 +68,20 @@ Update origin platform.
 | `disconnect` | `reason: string` | Koneksi terputus |
 | `reconnecting` | `attempt: number` | Percobaan reconnect ke-n |
 | `error` | `error: Error` | Terjadi error |
-| `notification` | `notif: NotificationPayload` | Menerima notifikasi baru |
+| `notification` | `notif: RWSPayload` | Menerima notifikasi baru |
 
 ## Types
 
-### NotificationClientConfig
+### RWSConfig
 
 ```typescript
 {
   serverUrl: string
   projectToken: string
   origin: string
-  autoConnect?: boolean
+  autoConnect?: boolean        // default: true
+  timeout?: number             // default: 10000
   reconnection?: ReconnectionConfig
-  timeout?: number
   logger?: Logger
 }
 ```
@@ -90,34 +90,34 @@ Update origin platform.
 
 ```typescript
 {
-  enabled?: boolean        // default: true
-  maxAttempts?: number     // default: 10
-  initialDelay?: number    // default: 1000 (ms)
-  maxDelay?: number        // default: 30000 (ms)
-  backoffMultiplier?: number // default: 2
+  enabled?: boolean           // default: true
+  maxAttempts?: number        // default: 10
+  initialDelay?: number       // default: 1000 (ms)
+  maxDelay?: number           // default: 30000 (ms)
+  backoffMultiplier?: number  // default: 2
 }
 ```
 
-### NotificationPayload
+### RWSPayload
 
 ```typescript
 {
   _id: string
-  ownerId: string
+  owner_id: string
   room: "public" | "private"
   title: string
   message: string
   link: string
-  userUniqueCode?: string
+  user_unique_code?: string
   type?: string
   meta: {
     destination: string
     channel: string
     origin?: string
   }
-  isRead: boolean
-  createdAt: string
-  updatedAt: string
+  is_read: boolean
+  created_at: string
+  updated_at: string
 }
 ```
 
@@ -126,7 +126,7 @@ Update origin platform.
 ```typescript
 {
   total: number
-  total_isread: number
+  total_is_read: number
   total_unread: number
   data: ChannelGroup[]
 }
@@ -135,7 +135,7 @@ Update origin platform.
 {
   channel: string
   total: number
-  total_isread: number
+  total_is_read: number
   total_unread: number
   data: DateGroup[]
 }
@@ -143,7 +143,7 @@ Update origin platform.
 // DateGroup
 {
   label: string  // "Hari Ini", "Kemarin", atau "Senin, 1/1/2024"
-  notif: NotificationPayload[]
+  notif: RWSPayload[]
 }
 ```
 

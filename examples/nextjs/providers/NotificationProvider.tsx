@@ -9,17 +9,17 @@ import {
   type ReactNode,
 } from "react"
 import {
-  NotificationClient,
+  RWSClient,
   type ConnectionState,
-  type NotificationPayload,
+  type RWSPayload,
   type GetNotificationsResponse,
-} from "notification-sdk"
-import { getNotificationClient } from "../lib/notification"
+} from "rws-sdk"
+import { getRWSClient } from "../lib/notification"
 
 interface NotificationContextValue {
-  client: NotificationClient | null
+  client: RWSClient | null
   connectionState: ConnectionState
-  notifications: NotificationPayload[]
+  notifications: RWSPayload[]
   unreadCount: number
   connect: (userUniqueCode: string) => void
   disconnect: () => void
@@ -45,10 +45,10 @@ interface Props {
 }
 
 export function NotificationProvider({ children, channels, origin }: Props) {
-  const [client] = useState(() => getNotificationClient())
+  const [client] = useState(() => getRWSClient())
   const [connectionState, setConnectionState] =
     useState<ConnectionState>("disconnected")
-  const [notifications, setNotifications] = useState<NotificationPayload[]>([])
+  const [notifications, setNotifications] = useState<RWSPayload[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [userUniqueCode, setUserUniqueCode] = useState<string | null>(null)
 
@@ -57,7 +57,7 @@ export function NotificationProvider({ children, channels, origin }: Props) {
       setConnectionState("connected")
     })
 
-    const unsub2 = client.on("disconnect", (reason) => {
+    const unsub2 = client.on("disconnect", () => {
       setConnectionState("disconnected")
     })
 
@@ -120,7 +120,7 @@ export function NotificationProvider({ children, channels, origin }: Props) {
       if (!userUniqueCode) return
       await client.markAsRead(notifId, userUniqueCode)
       setNotifications((prev) =>
-        prev.map((n) => (n._id === notifId ? { ...n, isRead: true } : n)),
+        prev.map((n) => (n._id === notifId ? { ...n, is_read: true } : n)),
       )
       setUnreadCount((prev) => Math.max(0, prev - 1))
     },
@@ -133,7 +133,7 @@ export function NotificationProvider({ children, channels, origin }: Props) {
       await client.markAllAsRead(notifIds, userUniqueCode)
       setNotifications((prev) =>
         prev.map((n) =>
-          notifIds.includes(n._id) ? { ...n, isRead: true } : n,
+          notifIds.includes(n._id) ? { ...n, is_read: true } : n,
         ),
       )
       setUnreadCount(0)

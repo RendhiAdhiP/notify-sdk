@@ -1,14 +1,14 @@
 import type {
-  NotificationEventName,
-  NotificationEventListener,
+  RWSEventName,
+  RWSEventListener,
 } from "../types"
 
 export class EventHandler {
-  private listeners = new Map<NotificationEventName, Set<(...args: unknown[]) => void>>()
+  private listeners = new Map<RWSEventName, Set<(...args: unknown[]) => void>>()
 
-  on<E extends NotificationEventName>(
+  on<E extends RWSEventName>(
     event: E,
-    listener: NotificationEventListener<E>,
+    listener: RWSEventListener<E>,
   ): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set())
@@ -18,22 +18,22 @@ export class EventHandler {
     return () => this.off(event, listener as (...args: unknown[]) => void)
   }
 
-  off<E extends NotificationEventName>(
+  off<E extends RWSEventName>(
     event: E,
-    listener: NotificationEventListener<E>,
+    listener: RWSEventListener<E>,
   ): void {
     this.listeners.get(event)?.delete(listener as (...args: unknown[]) => void)
   }
 
-  emit<E extends NotificationEventName>(
+  emit<E extends RWSEventName>(
     event: E,
-    ...args: Parameters<NotificationEventListener<E>>
+    ...args: Parameters<RWSEventListener<E>>
   ): void {
     this.listeners.get(event)?.forEach((listener) => {
       try {
         listener(...args)
       } catch (err) {
-        console.error(`[NotificationSDK] Error in ${event} listener:`, err)
+        console.error(`[RWSSDK] Error in ${event} listener:`, err)
       }
     })
   }
@@ -42,7 +42,7 @@ export class EventHandler {
     this.listeners.clear()
   }
 
-  listenerCount(event: NotificationEventName): number {
+  listenerCount(event: RWSEventName): number {
     return this.listeners.get(event)?.size ?? 0
   }
 }

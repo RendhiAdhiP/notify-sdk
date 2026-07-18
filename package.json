@@ -1,8 +1,8 @@
 {
-  "name": "notification-sdk",
-  "version": "1.0.0",
+  "name": "rws-sdk",
+  "version": "2.0.0",
   "private": true,
-  "description": "SDK untuk service Notifikasi WebSocket — real-time notification client untuk platform multi-tenant",
+  "description": "RWS SDK — Realtime WebSocket client untuk notifikasi, chat, dan event realtime multi-tenant",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -32,10 +32,12 @@
     "vite-plugin-dts": "^4.0.0"
   },
   "keywords": [
-    "notification",
+    "rws",
     "websocket",
     "socket.io",
     "realtime",
+    "notification",
+    "chat",
     "sdk"
   ],
   "license": "MIT"

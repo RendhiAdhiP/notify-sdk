@@ -1,7 +1,9 @@
-# Notification SDK
+# RWS SDK
 
-SDK untuk service notifikasi WebSocket — real-time notification client untuk platform multi-tenant.
+**RWS SDK** — Realtime WebSocket client untuk notifikasi, chat, dan event realtime multi-tenant.
 Membungkus komunikasi Socket.io dengan API yang sederhana, type-safe, dan framework-agnostic.
+
+Package: `rws-sdk` | Exports class: `RWSClient`
 
 ## Fitur
 
@@ -11,7 +13,7 @@ Membungkus komunikasi Socket.io dengan API yang sederhana, type-safe, dan framew
 -   Fetch semua notifikasi (publik & private) dengan state read/delete
 -   Mark as read, mark all as read, mark as delete
 -   Auto-reconnect dengan exponential backoff
--   Manajemen token
+-   Manajemen token & origin
 -   TypeScript first — full type definitions
 -   Framework-agnostic — bisa digunakan di Next.js, React, Vue, atau vanilla JS
 
@@ -30,9 +32,9 @@ npm install ../notification-sdk
 ## Quick Start
 
 ```typescript
-import { NotificationClient } from "notification-sdk"
+import { RWSClient } from "rws-sdk"
 
-const client = new NotificationClient({
+const client = new RWSClient({
   serverUrl: "https://notif.regarmarket.id",
   projectToken: "your-project-token",
   origin: "regarmarket",
@@ -62,8 +64,8 @@ const notifs = await client.getNotifications(["orders", "system"], "user123")
 ```
 notification-sdk/
 ├── src/
-│   ├── index.ts          # Entry point
-│   ├── types/            # Type definitions
+│   ├── index.ts          # Entry point (exports RWSClient + types)
+│   ├── types/            # Type definitions (config, notification, events)
 │   ├── core/             # Core client, auth, reconnection
 │   ├── handlers/         # Event listener management
 │   ├── utils/            # Utilities & helpers
@@ -72,6 +74,6 @@ notification-sdk/
 ├── examples/             # Example implementations
 │   └── nextjs/           # Next.js example
 ├── dist/                 # Build output
-├── package.json
+├── package.json          # Package name: rws-sdk
 └── tsconfig.json
 ```
