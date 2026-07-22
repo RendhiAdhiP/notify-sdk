@@ -342,9 +342,11 @@ class RWSClient {
       }
       let settled = false;
       let cleanup = null;
+      let timeoutId;
       const done = () => {
         if (settled) return;
         settled = true;
+        clearTimeout(timeoutId);
         cleanup == null ? void 0 : cleanup();
       };
       const listener = (data) => {
@@ -371,7 +373,7 @@ class RWSClient {
         private: `${this.authManager.getOrigin()}:all:${userUniqueCode}`,
         public: `${this.authManager.getOrigin()}:all`
       });
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         done();
         reject(new Error("getNotifications timeout"));
       }, DEFAULT_TIMEOUT);

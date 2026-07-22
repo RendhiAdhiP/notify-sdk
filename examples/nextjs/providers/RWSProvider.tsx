@@ -56,19 +56,15 @@ export function RWSProvider({ children, channels, origin }: Props) {
     const unsub1 = client.on("connect", () => {
       setConnectionState("connected")
     })
-
     const unsub2 = client.on("disconnect", () => {
       setConnectionState("disconnected")
     })
-
     const unsub3 = client.on("reconnecting", () => {
       setConnectionState("reconnecting")
     })
-
     const unsub4 = client.on("error", (err) => {
       console.error("[RWS] Error:", err)
     })
-
     const unsub5 = client.on("notification", (notif) => {
       setNotifications((prev) => [notif, ...prev])
       setUnreadCount((prev) => prev + 1)
