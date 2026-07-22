@@ -4,7 +4,6 @@ export type RWSEventMap = {
   connect: () => void
   disconnect: (reason: string) => void
   reconnecting: (attempt: number) => void
-  reconnected: () => void
   error: (error: Error) => void
   notification: (notification: RWSPayload) => void
 }

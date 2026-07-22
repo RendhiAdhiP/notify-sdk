@@ -258,10 +258,12 @@ export class RWSClient {
 
       let settled = false
       let cleanup: (() => void) | null = null
+      let timeoutId: ReturnType<typeof setTimeout>
 
       const done = () => {
         if (settled) return
         settled = true
+        clearTimeout(timeoutId)
         cleanup?.()
       }
 
@@ -292,7 +294,7 @@ export class RWSClient {
         public: `${this.authManager.getOrigin()}:all`,
       })
 
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         done()
         reject(new Error("getNotifications timeout"))
       }, DEFAULT_TIMEOUT)
