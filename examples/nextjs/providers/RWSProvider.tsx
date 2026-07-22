@@ -9,17 +9,17 @@ import {
   type ReactNode,
 } from "react"
 import {
-  NotificationClient,
+  RWSClient,
   type ConnectionState,
-  type NotificationPayload,
+  type RWSPayload,
   type GetNotificationsResponse,
-} from "notification-sdk"
-import { getNotificationClient } from "../lib/notification"
+} from "rws-js"
+import { getRWSClient } from "../lib/rws"
 
-interface NotificationContextValue {
-  client: NotificationClient | null
+interface RWSContextValue {
+  client: RWSClient | null
   connectionState: ConnectionState
-  notifications: NotificationPayload[]
+  notifications: RWSPayload[]
   unreadCount: number
   connect: (userUniqueCode: string) => void
   disconnect: () => void
@@ -28,12 +28,12 @@ interface NotificationContextValue {
   markAllAsRead: (notifIds: string[]) => Promise<void>
 }
 
-const NotificationContext = createContext<NotificationContextValue | null>(null)
+const RWSContext = createContext<RWSContextValue | null>(null)
 
-export function useNotification(): NotificationContextValue {
-  const ctx = useContext(NotificationContext)
+export function useRWS(): RWSContextValue {
+  const ctx = useContext(RWSContext)
   if (!ctx) {
-    throw new Error("useNotification must be used within NotificationProvider")
+    throw new Error("useRWS must be used within RWSProvider")
   }
   return ctx
 }
@@ -44,11 +44,11 @@ interface Props {
   origin: string
 }
 
-export function NotificationProvider({ children, channels, origin }: Props) {
-  const [client] = useState(() => getNotificationClient())
+export function RWSProvider({ children, channels, origin }: Props) {
+  const [client] = useState(() => getRWSClient())
   const [connectionState, setConnectionState] =
     useState<ConnectionState>("disconnected")
-  const [notifications, setNotifications] = useState<NotificationPayload[]>([])
+  const [notifications, setNotifications] = useState<RWSPayload[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [userUniqueCode, setUserUniqueCode] = useState<string | null>(null)
 
@@ -57,7 +57,7 @@ export function NotificationProvider({ children, channels, origin }: Props) {
       setConnectionState("connected")
     })
 
-    const unsub2 = client.on("disconnect", (reason) => {
+    const unsub2 = client.on("disconnect", () => {
       setConnectionState("disconnected")
     })
 
@@ -66,7 +66,7 @@ export function NotificationProvider({ children, channels, origin }: Props) {
     })
 
     const unsub4 = client.on("error", (err) => {
-      console.error("[Notification] Error:", err)
+      console.error("[RWS] Error:", err)
     })
 
     const unsub5 = client.on("notification", (notif) => {
@@ -120,7 +120,7 @@ export function NotificationProvider({ children, channels, origin }: Props) {
       if (!userUniqueCode) return
       await client.markAsRead(notifId, userUniqueCode)
       setNotifications((prev) =>
-        prev.map((n) => (n._id === notifId ? { ...n, isRead: true } : n)),
+        prev.map((n) => (n._id === notifId ? { ...n, is_read: true } : n)),
       )
       setUnreadCount((prev) => Math.max(0, prev - 1))
     },
@@ -133,7 +133,7 @@ export function NotificationProvider({ children, channels, origin }: Props) {
       await client.markAllAsRead(notifIds, userUniqueCode)
       setNotifications((prev) =>
         prev.map((n) =>
-          notifIds.includes(n._id) ? { ...n, isRead: true } : n,
+          notifIds.includes(n._id) ? { ...n, is_read: true } : n,
         ),
       )
       setUnreadCount(0)
@@ -142,7 +142,7 @@ export function NotificationProvider({ children, channels, origin }: Props) {
   )
 
   return (
-    <NotificationContext.Provider
+    <RWSContext.Provider
       value={{
         client,
         connectionState,
@@ -156,6 +156,6 @@ export function NotificationProvider({ children, channels, origin }: Props) {
       }}
     >
       {children}
-    </NotificationContext.Provider>
+    </RWSContext.Provider>
   )
 }

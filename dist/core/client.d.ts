@@ -1,5 +1,5 @@
-import { NotificationClientConfig, ConnectionState, GetNotificationsResponse, ApiResponse, NotificationEventName, NotificationEventListener } from '../types';
-export declare class NotificationClient {
+import { RWSConfig, ConnectionState, GetNotificationsResponse, ApiResponse, RWSEventName, RWSEventListener } from '../types';
+export declare class RWSClient {
     private socket;
     private config;
     private authManager;
@@ -11,7 +11,7 @@ export declare class NotificationClient {
     private destroyed;
     private connectPromise;
     private isBrowser;
-    constructor(config: NotificationClientConfig);
+    constructor(config: RWSConfig);
     get connectionState(): ConnectionState;
     get serverUrl(): string;
     get origin(): string;
@@ -25,8 +25,8 @@ export declare class NotificationClient {
     join(destination: string, channel: string, userUniqueCode?: string): void;
     leave(destination: string, channel: string, userUniqueCode?: string): void;
     leaveAll(): void;
-    on<E extends NotificationEventName>(event: E, listener: NotificationEventListener<E>): () => void;
-    off<E extends NotificationEventName>(event: E, listener: NotificationEventListener<E>): void;
+    on<E extends RWSEventName>(event: E, listener: RWSEventListener<E>): () => void;
+    off<E extends RWSEventName>(event: E, listener: RWSEventListener<E>): void;
     getNotifications(channels: string[], userUniqueCode: string): Promise<GetNotificationsResponse>;
     markAsRead(notifId: string, userId: string, origin?: string): Promise<ApiResponse>;
     markAllAsRead(notifIds: string[], userId: string, origin?: string): Promise<ApiResponse>;

@@ -1,37 +1,35 @@
 # Next.js Integration Example
 
-Example implementasi Notification SDK di Next.js App Router.
+Example implementasi RWS SDK (`rws-js`) di Next.js App Router.
 
 ## Setup
 
 1. Install dependency:
 
 ```bash
-npm install notification-sdk
+npm install github:RendhiAdhiP/rws-js
 ```
 
 Atau jika local:
 
 ```bash
-npm install ../../notification-sdk
+npm install ../../rws-js
 ```
 
 2. Copy file berikut ke project Next.js kamu:
-   - `lib/notification.ts` — Inisialisasi client (server-side)
-   - `hooks/useNotification.ts` — React hook untuk component
-   - `providers/NotificationProvider.tsx` — Context provider
-   - `components/NotificationBell.tsx` — Contoh komponen
+   - `lib/rws.ts` — Inisialisasi client singleton (`RWSClient`)
+   - `providers/RWSProvider.tsx` — Context provider dengan hook `useRWS()`
+   - `components/RWSBell.tsx` — Contoh komponen notifikasi
 
 ## Struktur File
 
 ```
 app/
 ├── lib/
-│   └── notification.ts
-├── hooks/
-│   └── useNotification.ts
+│   └── rws.ts
 ├── providers/
-│   └── NotificationProvider.tsx
-└── components/
-    └── NotificationBell.tsx
+│   └── RWSProvider.tsx
+├── components/
+│   └── RWSBell.tsx
+└── layout.tsx
 ```

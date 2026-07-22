@@ -1,41 +1,41 @@
 import { io, Socket } from "socket.io-client"
 import type {
-  NotificationClientConfig,
+  RWSConfig,
   ConnectionState,
-  NotificationPayload,
+  RWSPayload,
   GetNotificationsResponse,
   MarkReadRequest,
   MarkAllReadRequest,
   MarkDeleteRequest,
   ApiResponse,
-  NotificationEventName,
-  NotificationEventListener,
+  RWSEventName,
+  RWSEventListener,
 } from "../types"
 import { DEFAULT_TIMEOUT } from "../config/default"
 import { AuthManager } from "./auth"
 import { ReconnectionManager } from "./reconnection"
 import { EventHandler } from "../handlers"
-import { NotificationLogger } from "../utils/logger"
+import { RWSLogger } from "../utils/logger"
 
-export class NotificationClient {
+export class RWSClient {
   private socket: Socket | null = null
-  private config: NotificationClientConfig
+  private config: RWSConfig
   private authManager: AuthManager
   private reconnectionManager: ReconnectionManager
   private eventHandler: EventHandler
-  private logger: NotificationLogger
+  private logger: RWSLogger
   private state: ConnectionState = "disconnected"
   private joinedRooms = new Set<string>()
   private destroyed = false
   private connectPromise: Promise<void> | null = null
   private isBrowser: boolean
 
-  constructor(config: NotificationClientConfig) {
+  constructor(config: RWSConfig) {
     this.config = config
     this.authManager = new AuthManager(config.projectToken, config.origin)
     this.reconnectionManager = new ReconnectionManager(config.reconnection)
     this.eventHandler = new EventHandler()
-    this.logger = new NotificationLogger(config.logger)
+    this.logger = new RWSLogger(config.logger)
     this.isBrowser = typeof window !== "undefined" && typeof document !== "undefined"
 
     this.reconnectionManager.onReconnectAttempt = (attempt, delay) => {
@@ -140,7 +140,7 @@ export class NotificationClient {
           this.eventHandler.emit("error", err)
         })
 
-        this.socket.on("get-notif", (notification: NotificationPayload) => {
+        this.socket.on("notification:new", (notification: RWSPayload) => {
           this.eventHandler.emit("notification", notification)
         })
       } catch (err) {
@@ -172,7 +172,7 @@ export class NotificationClient {
     if (this.joinedRooms.size === 0) return
     this.logger.info(`Rejoining ${this.joinedRooms.size} room(s)`)
     for (const room of this.joinedRooms) {
-      this.socket?.emit("join-room", room)
+      this.socket?.emit("room:join", room)
     }
   }
 
@@ -202,7 +202,7 @@ export class NotificationClient {
       this.joinedRooms.add(room)
 
       if (this.socket?.connected) {
-        this.socket.emit("join-room", room)
+        this.socket.emit("room:join", room)
       }
     }
   }
@@ -218,7 +218,7 @@ export class NotificationClient {
       this.joinedRooms.delete(room)
 
       if (this.socket?.connected) {
-        this.socket.emit("leave-room", room)
+        this.socket.emit("room:leave", room)
       }
     }
   }
@@ -226,22 +226,22 @@ export class NotificationClient {
   leaveAll(): void {
     for (const room of this.joinedRooms) {
       if (this.socket?.connected) {
-        this.socket.emit("leave-room", room)
+        this.socket.emit("room:leave", room)
       }
     }
     this.joinedRooms.clear()
   }
 
-  on<E extends NotificationEventName>(
+  on<E extends RWSEventName>(
     event: E,
-    listener: NotificationEventListener<E>,
+    listener: RWSEventListener<E>,
   ): () => void {
     return this.eventHandler.on(event, listener)
   }
 
-  off<E extends NotificationEventName>(
+  off<E extends RWSEventName>(
     event: E,
-    listener: NotificationEventListener<E>,
+    listener: RWSEventListener<E>,
   ): void {
     this.eventHandler.off(event, listener)
   }
@@ -277,14 +277,14 @@ export class NotificationClient {
       }
 
       cleanup = () => {
-        this.socket?.off("get-all-notif", listener)
+        this.socket?.off("notification:list", listener)
         this.socket?.off("disconnect", onDisconnect)
       }
 
-      this.socket.on("get-all-notif", listener)
+      this.socket.on("notification:list", listener)
       this.socket.on("disconnect", onDisconnect)
 
-      this.socket.emit("get-all-notif", {
+      this.socket.emit("notification:list", {
         channels,
         origin: this.authManager.getOrigin(),
         user_unique_code: userUniqueCode,

@@ -3,9 +3,9 @@
 ## Inisialisasi Client
 
 ```typescript
-import { NotificationClient } from "notification-sdk"
+import { RWSClient } from "rws-js"
 
-const client = new NotificationClient({
+const client = new RWSClient({
   serverUrl: "https://notif.regarmarket.id",
   projectToken: "eyJhbGciOiJIUzI1NiIs...",
   origin: "regarmarket",
@@ -29,9 +29,10 @@ const client = new NotificationClient({
 | `serverUrl` | `string` | — | URL server WebSocket (wajib) |
 | `projectToken` | `string` | — | Token autentikasi project (wajib) |
 | `origin` | `string` | — | Origin platform (wajib) |
-| `autoConnect` | `boolean` | `true` | Auto-connect saat inisialisasi |
+| `autoConnect` | `boolean` | `true` | Auto-connect saat inisialisasi (browser only) |
 | `timeout` | `number` | `10000` | Timeout koneksi (ms) |
 | `reconnection` | `object` | — | Konfigurasi auto-reconnect |
+| `logger` | `object` | — | Custom logger (console, etc.) |
 
 ## Event Listeners
 
@@ -43,13 +44,13 @@ const client = new NotificationClient({
 | `disconnect` | `(reason: string) => void` | Terputus dari server |
 | `reconnecting` | `(attempt: number) => void` | Sedang mencoba reconnect |
 | `error` | `(error: Error) => void` | Terjadi error |
-| `notification` | `(notif: NotificationPayload) => void` | Menerima notifikasi baru |
+| `notification` | `(notif: RWSPayload) => void` | Menerima notifikasi baru |
 
 ### Subscribe
 
 ```typescript
 const unsub = client.on("notification", (notif) => {
-  console.log(`[${notif.type}] ${notif.title}: ${notif.message}`)
+  console.log(`[${notif.meta.channel}] ${notif.title}: ${notif.message}`)
 })
 
 // Hapus listener
@@ -116,16 +117,16 @@ for (const channel of result.data) {
 ```typescript
 {
   total: number
-  total_isread: number
+  total_is_read: number
   total_unread: number
   data: [{
     channel: string
     total: number
-    total_isread: number
+    total_is_read: number
     total_unread: number
     data: [{
       label: string         // "Hari Ini", "Kemarin", atau "Senin, 1/1/2024"
-      notif: NotificationPayload[]
+      notif: RWSPayload[]
     }]
   }]
 }
@@ -167,10 +168,16 @@ await client.connect()
 console.log(client.connectionState)
 // "disconnected" | "connecting" | "connected" | "reconnecting"
 
+// Dapatkan URL server
+console.log(client.serverUrl)
+
+// Dapatkan origin
+console.log(client.origin)
+
 // Disconnect
 await client.disconnect()
 
-// Destroy (cleanup semua listener)
+// Destroy (cleanup semua listener + disconnect)
 await client.destroy()
 ```
 
@@ -182,6 +189,8 @@ client.setOrigin("new-origin")
 
 // Catatan: perubahan tidak memengaruhi koneksi aktif.
 // Untuk menggunakan kredensial baru, disconnect lalu connect ulang.
+await client.disconnect()
+await client.connect()
 ```
 
 ## Error Handling
@@ -209,7 +218,7 @@ try {
 ## Logging
 
 ```typescript
-const client = new NotificationClient({
+const client = new RWSClient({
   // ...
   logger: {
     info: console.log,

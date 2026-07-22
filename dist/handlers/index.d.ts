@@ -1,9 +1,9 @@
-import { NotificationEventName, NotificationEventListener } from '../types';
+import { RWSEventName, RWSEventListener } from '../types';
 export declare class EventHandler {
     private listeners;
-    on<E extends NotificationEventName>(event: E, listener: NotificationEventListener<E>): () => void;
-    off<E extends NotificationEventName>(event: E, listener: NotificationEventListener<E>): void;
-    emit<E extends NotificationEventName>(event: E, ...args: Parameters<NotificationEventListener<E>>): void;
+    on<E extends RWSEventName>(event: E, listener: RWSEventListener<E>): () => void;
+    off<E extends RWSEventName>(event: E, listener: RWSEventListener<E>): void;
+    emit<E extends RWSEventName>(event: E, ...args: Parameters<RWSEventListener<E>>): void;
     removeAll(): void;
-    listenerCount(event: NotificationEventName): number;
+    listenerCount(event: RWSEventName): number;
 }

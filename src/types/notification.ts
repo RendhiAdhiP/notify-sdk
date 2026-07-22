@@ -1,19 +1,19 @@
-export interface NotificationPayload {
+export interface RWSPayload {
   _id: string
-  ownerId: string
+  owner_id: string
   room: "public" | "private"
   title: string
   message: string
   link: string
-  userUniqueCode?: string
+  user_unique_code?: string
   type?: string
-  meta: NotificationMeta
-  isRead: boolean
-  createdAt: string
-  updatedAt: string
+  meta: RWSNotificationMeta
+  is_read: boolean
+  created_at: string
+  updated_at: string
 }
 
-export interface NotificationMeta {
+export interface RWSNotificationMeta {
   destination: string
   channel: string
   origin?: string
@@ -28,7 +28,7 @@ export interface GetNotificationsRequest {
 
 export interface GetNotificationsResponse {
   total: number
-  total_isread: number
+  total_is_read: number
   total_unread: number
   data: ChannelGroup[]
 }
@@ -36,14 +36,14 @@ export interface GetNotificationsResponse {
 export interface ChannelGroup {
   channel: string
   total: number
-  total_isread: number
+  total_is_read: number
   total_unread: number
   data: DateGroup[]
 }
 
 export interface DateGroup {
   label: string
-  notif: NotificationPayload[]
+  notif: RWSPayload[]
 }
 
 export interface MarkReadRequest {

@@ -1,15 +1,15 @@
-export { NotificationClient } from "./core/client"
+export { RWSClient } from "./core/client"
 
 export type {
-  NotificationClientConfig,
+  RWSConfig,
   ReconnectionConfig,
   Logger,
   ConnectionState,
-  NotificationEventMap,
-  NotificationEventName,
-  NotificationEventListener,
-  NotificationPayload,
-  NotificationMeta,
+  RWSEventMap,
+  RWSEventName,
+  RWSEventListener,
+  RWSPayload,
+  RWSNotificationMeta,
   GetNotificationsRequest,
   GetNotificationsResponse,
   ChannelGroup,

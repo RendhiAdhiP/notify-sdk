@@ -1,16 +1,16 @@
 import type { ReactNode } from "react"
-import { NotificationProvider } from "../providers/NotificationProvider"
+import { RWSProvider } from "../providers/RWSProvider"
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <NotificationProvider
+        <RWSProvider
           channels={["orders", "system", "messages"]}
-          origin={process.env.NEXT_PUBLIC_NOTIF_ORIGIN!}
+          origin={process.env.NEXT_PUBLIC_RWS_ORIGIN!}
         >
           {children}
-        </NotificationProvider>
+        </RWSProvider>
       </body>
     </html>
   )
