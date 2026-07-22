@@ -1,13 +1,13 @@
 "use client"
 
-import { NotificationBell } from "../components/NotificationBell"
+import { RWSBell } from "../components/RWSBell"
 
 export default function Home() {
   return (
     <main className="min-h-screen p-8">
       <header className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold">My App</h1>
-        <NotificationBell userId="user123" />
+        <RWSBell userId="user123" />
       </header>
 
       <section>

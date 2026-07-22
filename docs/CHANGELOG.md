@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0] - 2026-07-22
+
+### Changed
+-   **Package renamed**: `rws-sdk` → `rws-js` (import from `"rws-js"`)
+-   **Example files**: Renamed to use `RWS` prefix (e.g., `RWSProvider`, `RWSBell`, `rws.ts`)
+-   **Env vars**: `NEXT_PUBLIC_NOTIF_*` → `NEXT_PUBLIC_RWS_*`
+
 ## [2.0.0] - 2026-07-18
 
 ### Changed

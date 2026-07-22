@@ -13,10 +13,10 @@ import {
   type ConnectionState,
   type RWSPayload,
   type GetNotificationsResponse,
-} from "rws-sdk"
-import { getRWSClient } from "../lib/notification"
+} from "rws-js"
+import { getRWSClient } from "../lib/rws"
 
-interface NotificationContextValue {
+interface RWSContextValue {
   client: RWSClient | null
   connectionState: ConnectionState
   notifications: RWSPayload[]
@@ -28,12 +28,12 @@ interface NotificationContextValue {
   markAllAsRead: (notifIds: string[]) => Promise<void>
 }
 
-const NotificationContext = createContext<NotificationContextValue | null>(null)
+const RWSContext = createContext<RWSContextValue | null>(null)
 
-export function useNotification(): NotificationContextValue {
-  const ctx = useContext(NotificationContext)
+export function useRWS(): RWSContextValue {
+  const ctx = useContext(RWSContext)
   if (!ctx) {
-    throw new Error("useNotification must be used within NotificationProvider")
+    throw new Error("useRWS must be used within RWSProvider")
   }
   return ctx
 }
@@ -44,7 +44,7 @@ interface Props {
   origin: string
 }
 
-export function NotificationProvider({ children, channels, origin }: Props) {
+export function RWSProvider({ children, channels, origin }: Props) {
   const [client] = useState(() => getRWSClient())
   const [connectionState, setConnectionState] =
     useState<ConnectionState>("disconnected")
@@ -66,7 +66,7 @@ export function NotificationProvider({ children, channels, origin }: Props) {
     })
 
     const unsub4 = client.on("error", (err) => {
-      console.error("[Notification] Error:", err)
+      console.error("[RWS] Error:", err)
     })
 
     const unsub5 = client.on("notification", (notif) => {
@@ -142,7 +142,7 @@ export function NotificationProvider({ children, channels, origin }: Props) {
   )
 
   return (
-    <NotificationContext.Provider
+    <RWSContext.Provider
       value={{
         client,
         connectionState,
@@ -156,6 +156,6 @@ export function NotificationProvider({ children, channels, origin }: Props) {
       }}
     >
       {children}
-    </NotificationContext.Provider>
+    </RWSContext.Provider>
   )
 }

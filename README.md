@@ -3,7 +3,7 @@
 **RWS SDK** — Realtime WebSocket client untuk notifikasi, chat, dan event realtime multi-tenant.
 Membungkus komunikasi Socket.io dengan API yang sederhana, type-safe, dan framework-agnostic.
 
-Package: `rws-sdk` | Exports class: `RWSClient`
+Package: `rws-js` | Exports class: `RWSClient`
 
 ## Fitur
 
@@ -20,19 +20,19 @@ Package: `rws-sdk` | Exports class: `RWSClient`
 ## Instalasi
 
 ```bash
-npm install github:RendhiAdhiP/notify-sdk
+npm install github:RendhiAdhiP/rws-js
 ```
 
 Atau dari local package (development):
 
 ```bash
-npm install ../notification-sdk
+npm install ../rws-js
 ```
 
 ## Quick Start
 
 ```typescript
-import { RWSClient } from "rws-sdk"
+import { RWSClient } from "rws-js"
 
 const client = new RWSClient({
   serverUrl: "https://notif.regarmarket.id",
@@ -62,10 +62,10 @@ const notifs = await client.getNotifications(["orders", "system"], "user123")
 ## Struktur Project
 
 ```
-notification-sdk/
+rws-js/
 ├── src/
 │   ├── index.ts          # Entry point (exports RWSClient + types)
-│   ├── types/            # Type definitions (config, notification, events)
+│   ├── types/            # Type definitions (config, rws, events)
 │   ├── core/             # Core client, auth, reconnection
 │   ├── handlers/         # Event listener management
 │   ├── utils/            # Utilities & helpers
@@ -74,6 +74,6 @@ notification-sdk/
 ├── examples/             # Example implementations
 │   └── nextjs/           # Next.js example
 ├── dist/                 # Build output
-├── package.json          # Package name: rws-sdk
+├── package.json          # Package name: rws-js
 └── tsconfig.json
 ```

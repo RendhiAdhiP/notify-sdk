@@ -121,7 +121,7 @@ class EventHandler {
       try {
         listener(...args);
       } catch (err) {
-        console.error(`[NotificationSDK] Error in ${event} listener:`, err);
+        console.error(`[RWSSDK] Error in ${event} listener:`, err);
       }
     });
   }
@@ -133,24 +133,24 @@ class EventHandler {
     return ((_a = this.listeners.get(event)) == null ? void 0 : _a.size) ?? 0;
   }
 }
-class NotificationLogger {
+class RWSLogger {
   constructor(logger) {
     this.logger = { ...DEFAULT_LOGGER, ...logger };
   }
   info(...args) {
-    this.logger.info(`[NotificationSDK]`, ...args);
+    this.logger.info(`[RWSSDK]`, ...args);
   }
   warn(...args) {
-    this.logger.warn(`[NotificationSDK]`, ...args);
+    this.logger.warn(`[RWSSDK]`, ...args);
   }
   error(...args) {
-    this.logger.error(`[NotificationSDK]`, ...args);
+    this.logger.error(`[RWSSDK]`, ...args);
   }
   debug(...args) {
-    this.logger.debug(`[NotificationSDK]`, ...args);
+    this.logger.debug(`[RWSSDK]`, ...args);
   }
 }
-class NotificationClient {
+class RWSClient {
   constructor(config) {
     this.socket = null;
     this.state = "disconnected";
@@ -161,7 +161,7 @@ class NotificationClient {
     this.authManager = new AuthManager(config.projectToken, config.origin);
     this.reconnectionManager = new ReconnectionManager(config.reconnection);
     this.eventHandler = new EventHandler();
-    this.logger = new NotificationLogger(config.logger);
+    this.logger = new RWSLogger(config.logger);
     this.isBrowser = typeof window !== "undefined" && typeof document !== "undefined";
     this.reconnectionManager.onReconnectAttempt = (attempt, delay) => {
       this.logger.info(`Reconnection attempt ${attempt} in ${delay}ms`);
@@ -246,7 +246,7 @@ class NotificationClient {
           this.logger.error(`Connection error: ${err.message}`);
           this.eventHandler.emit("error", err);
         });
-        this.socket.on("get-notif", (notification) => {
+        this.socket.on("notification:new", (notification) => {
           this.eventHandler.emit("notification", notification);
         });
       } catch (err) {
@@ -276,7 +276,7 @@ class NotificationClient {
     if (this.joinedRooms.size === 0) return;
     this.logger.info(`Rejoining ${this.joinedRooms.size} room(s)`);
     for (const room of this.joinedRooms) {
-      (_a = this.socket) == null ? void 0 : _a.emit("join-room", room);
+      (_a = this.socket) == null ? void 0 : _a.emit("room:join", room);
     }
   }
   async disconnect() {
@@ -301,7 +301,7 @@ class NotificationClient {
     for (const room of rooms) {
       this.joinedRooms.add(room);
       if ((_a = this.socket) == null ? void 0 : _a.connected) {
-        this.socket.emit("join-room", room);
+        this.socket.emit("room:join", room);
       }
     }
   }
@@ -314,7 +314,7 @@ class NotificationClient {
     for (const room of rooms) {
       this.joinedRooms.delete(room);
       if ((_a = this.socket) == null ? void 0 : _a.connected) {
-        this.socket.emit("leave-room", room);
+        this.socket.emit("room:leave", room);
       }
     }
   }
@@ -322,7 +322,7 @@ class NotificationClient {
     var _a;
     for (const room of this.joinedRooms) {
       if ((_a = this.socket) == null ? void 0 : _a.connected) {
-        this.socket.emit("leave-room", room);
+        this.socket.emit("room:leave", room);
       }
     }
     this.joinedRooms.clear();
@@ -359,12 +359,12 @@ class NotificationClient {
       };
       cleanup = () => {
         var _a2, _b;
-        (_a2 = this.socket) == null ? void 0 : _a2.off("get-all-notif", listener);
+        (_a2 = this.socket) == null ? void 0 : _a2.off("notification:list", listener);
         (_b = this.socket) == null ? void 0 : _b.off("disconnect", onDisconnect);
       };
-      this.socket.on("get-all-notif", listener);
+      this.socket.on("notification:list", listener);
       this.socket.on("disconnect", onDisconnect);
-      this.socket.emit("get-all-notif", {
+      this.socket.emit("notification:list", {
         channels,
         origin: this.authManager.getOrigin(),
         user_unique_code: userUniqueCode,
@@ -437,5 +437,5 @@ class NotificationClient {
   }
 }
 export {
-  NotificationClient
+  RWSClient
 };

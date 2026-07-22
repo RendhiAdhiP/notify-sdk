@@ -1,4 +1,4 @@
-export interface NotificationClientConfig {
+export interface RWSConfig {
     serverUrl: string;
     projectToken: string;
     origin: string;

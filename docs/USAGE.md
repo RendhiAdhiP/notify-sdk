@@ -3,7 +3,7 @@
 ## Inisialisasi Client
 
 ```typescript
-import { RWSClient } from "rws-sdk"
+import { RWSClient } from "rws-js"
 
 const client = new RWSClient({
   serverUrl: "https://notif.regarmarket.id",

@@ -8,13 +8,13 @@
 ## Install dari Private Repository
 
 ```bash
-npm install github:RendhiAdhiP/notify-sdk
+npm install github:RendhiAdhiP/rws-js
 ```
 
-Package akan terinstall sebagai `rws-sdk`. Import class `RWSClient`:
+Package akan terinstall sebagai `rws-js`. Import class `RWSClient`:
 
 ```typescript
-import { RWSClient } from "rws-sdk"
+import { RWSClient } from "rws-js"
 ```
 
 ## Install dari Local Package (Development)
@@ -22,7 +22,7 @@ import { RWSClient } from "rws-sdk"
 Jika SDK berada di sibling directory:
 
 ```bash
-npm install ../notification-sdk
+npm install ../rws-js
 ```
 
 Atau di `package.json`:
@@ -30,7 +30,7 @@ Atau di `package.json`:
 ```json
 {
   "dependencies": {
-    "rws-sdk": "file:../notification-sdk"
+    "rws-js": "file:../rws-js"
   }
 }
 ```
@@ -40,7 +40,7 @@ Atau di `package.json`:
 ```bash
 # Clone atau copy project
 git clone <repo-url>
-cd notification-sdk
+cd rws-js
 
 # Install dependencies
 npm install

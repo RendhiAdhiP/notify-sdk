@@ -1,13 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { useNotification } from "../providers/NotificationProvider"
+import { useRWS } from "../providers/RWSProvider"
 
 interface Props {
   userId: string
 }
 
-export function NotificationBell({ userId }: Props) {
+export function RWSBell({ userId }: Props) {
   const {
     connectionState,
     notifications,
@@ -16,7 +16,7 @@ export function NotificationBell({ userId }: Props) {
     disconnect,
     refresh,
     markAsRead,
-  } = useNotification()
+  } = useRWS()
 
   const [isOpen, setIsOpen] = useState(false)
   const isConnected = connectionState === "connected"

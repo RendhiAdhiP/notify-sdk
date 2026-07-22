@@ -1,5 +1,5 @@
 import { Logger } from '../types';
-export declare class NotificationLogger {
+export declare class RWSLogger {
     private logger;
     constructor(logger?: Partial<Logger>);
     info(...args: unknown[]): void;

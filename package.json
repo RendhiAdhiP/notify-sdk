@@ -1,5 +1,5 @@
 {
-  "name": "rws-sdk",
+  "name": "rws-js",
   "version": "2.0.0",
   "private": true,
   "description": "RWS SDK — Realtime WebSocket client untuk notifikasi, chat, dan event realtime multi-tenant",
@@ -36,7 +36,6 @@
     "websocket",
     "socket.io",
     "realtime",
-    "notification",
     "chat",
     "sdk"
   ],
