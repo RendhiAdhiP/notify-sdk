@@ -150,6 +150,10 @@ class RWSLogger {
     this.logger.debug(`[RWSSDK]`, ...args);
   }
 }
+let requestIdCounter = 0;
+function nextRequestId() {
+  return `req_${Date.now()}_${++requestIdCounter}`;
+}
 class RWSClient {
   constructor(config) {
     this.socket = null;
@@ -157,6 +161,7 @@ class RWSClient {
     this.joinedRooms = /* @__PURE__ */ new Set();
     this.destroyed = false;
     this.connectPromise = null;
+    this.pendingRequests = /* @__PURE__ */ new Map();
     this.config = config;
     this.authManager = new AuthManager(config.projectToken, config.origin);
     this.reconnectionManager = new ReconnectionManager(config.reconnection);
@@ -190,6 +195,57 @@ class RWSClient {
       this.socket = null;
     }
   }
+  wrapPayload(event, data, meta = {}) {
+    return {
+      event,
+      data,
+      meta,
+      error: null
+    };
+  }
+  resolvePending(requestId, data) {
+    const entry = this.pendingRequests.get(requestId);
+    if (!entry) return;
+    clearTimeout(entry.timer);
+    this.pendingRequests.delete(requestId);
+    entry.resolve(data);
+  }
+  rejectPending(requestId, error) {
+    const entry = this.pendingRequests.get(requestId);
+    if (!entry) return;
+    clearTimeout(entry.timer);
+    this.pendingRequests.delete(requestId);
+    entry.reject(error);
+  }
+  rejectAllPending(error) {
+    for (const [, entry] of this.pendingRequests) {
+      clearTimeout(entry.timer);
+      entry.reject(error);
+    }
+    this.pendingRequests.clear();
+  }
+  request(event, data, meta = {}) {
+    return new Promise((resolve, reject) => {
+      var _a;
+      if (!((_a = this.socket) == null ? void 0 : _a.connected)) {
+        reject(new Error("Socket not connected"));
+        return;
+      }
+      const requestId = nextRequestId();
+      const payload = this.wrapPayload(event, data, { ...meta, request_id: requestId });
+      console.log(payload);
+      const timer = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        reject(new Error(`Request timeout: ${event}`));
+      }, this.config.timeout ?? DEFAULT_TIMEOUT);
+      this.pendingRequests.set(requestId, {
+        resolve,
+        reject,
+        timer
+      });
+      this.socket.emit(event, payload);
+    });
+  }
   async connect() {
     var _a;
     if (!this.isBrowser) {
@@ -197,16 +253,10 @@ class RWSClient {
       this.logger.error(err.message);
       return Promise.reject(err);
     }
-    if ((_a = this.socket) == null ? void 0 : _a.connected) {
-      return;
-    }
-    if (this.connectPromise) {
-      return this.connectPromise;
-    }
+    if ((_a = this.socket) == null ? void 0 : _a.connected) return;
+    if (this.connectPromise) return this.connectPromise;
     this.destroyed = false;
-    if (this.socket) {
-      this.cleanupSocket();
-    }
+    if (this.socket) this.cleanupSocket();
     this.setState("connecting");
     this.logger.info(`Connecting to ${this.config.serverUrl}`);
     const timeoutMs = this.config.timeout ?? DEFAULT_TIMEOUT;
@@ -246,8 +296,40 @@ class RWSClient {
           this.logger.error(`Connection error: ${err.message}`);
           this.eventHandler.emit("error", err);
         });
-        this.socket.on("notification:new", (notification) => {
-          this.eventHandler.emit("notification", notification);
+        this.socket.onAny((event, payload) => {
+          var _a2;
+          if (!payload) return;
+          const requestId = (_a2 = payload.meta) == null ? void 0 : _a2.request_id;
+          if (payload.error) {
+            if (requestId) {
+              const err = new Error(payload.error.message);
+              err.name = payload.error.code;
+              this.rejectPending(requestId, err);
+            }
+            if (event === "room:join") this.eventHandler.emit("room_join_error", payload.error);
+            if (event === "room:leave") this.eventHandler.emit("room_leave_error", payload.error);
+            return;
+          }
+          if (requestId) {
+            this.resolvePending(requestId, payload.data);
+          }
+          switch (event) {
+            case "notification:new":
+              this.eventHandler.emit(
+                "notification",
+                payload
+              );
+              break;
+            case "chat:updated":
+              this.eventHandler.emit("chat_updated", payload.data);
+              break;
+            case "notification:list":
+              this.eventHandler.emit("notification_list", payload.data);
+              break;
+            case "chat:resolve":
+              this.eventHandler.emit("chat_resolve", payload.data);
+              break;
+          }
         });
       } catch (err) {
         clearTimeout(timeout);
@@ -276,7 +358,7 @@ class RWSClient {
     if (this.joinedRooms.size === 0) return;
     this.logger.info(`Rejoining ${this.joinedRooms.size} room(s)`);
     for (const room of this.joinedRooms) {
-      (_a = this.socket) == null ? void 0 : _a.emit("room:join", room);
+      (_a = this.socket) == null ? void 0 : _a.emit("room:join", this.wrapPayload("room:join", { room }));
     }
   }
   async disconnect() {
@@ -284,6 +366,7 @@ class RWSClient {
     this.connectPromise = null;
     this.reconnectionManager.cancel();
     this.joinedRooms.clear();
+    this.rejectAllPending(new Error("Disconnected"));
     this.cleanupSocket();
     this.setState("disconnected");
     this.logger.info("Disconnected");
@@ -295,26 +378,22 @@ class RWSClient {
   join(destination, channel, userUniqueCode) {
     var _a;
     const rooms = [`${destination}:${channel}`];
-    if (userUniqueCode) {
-      rooms.push(`${destination}:${channel}:${userUniqueCode}`);
-    }
+    if (userUniqueCode) rooms.push(`${destination}:${channel}:${userUniqueCode}`);
     for (const room of rooms) {
       this.joinedRooms.add(room);
       if ((_a = this.socket) == null ? void 0 : _a.connected) {
-        this.socket.emit("room:join", room);
+        this.socket.emit("room:join", this.wrapPayload("room:join", { room }));
       }
     }
   }
   leave(destination, channel, userUniqueCode) {
     var _a;
     const rooms = [`${destination}:${channel}`];
-    if (userUniqueCode) {
-      rooms.push(`${destination}:${channel}:${userUniqueCode}`);
-    }
+    if (userUniqueCode) rooms.push(`${destination}:${channel}:${userUniqueCode}`);
     for (const room of rooms) {
       this.joinedRooms.delete(room);
       if ((_a = this.socket) == null ? void 0 : _a.connected) {
-        this.socket.emit("room:leave", room);
+        this.socket.emit("room:leave", this.wrapPayload("room:leave", { room }));
       }
     }
   }
@@ -322,7 +401,7 @@ class RWSClient {
     var _a;
     for (const room of this.joinedRooms) {
       if ((_a = this.socket) == null ? void 0 : _a.connected) {
-        this.socket.emit("room:leave", room);
+        this.socket.emit("room:leave", this.wrapPayload("room:leave", { room }));
       }
     }
     this.joinedRooms.clear();
@@ -334,77 +413,39 @@ class RWSClient {
     this.eventHandler.off(event, listener);
   }
   getNotifications(channels, userUniqueCode) {
-    return new Promise((resolve, reject) => {
-      var _a;
-      if (!((_a = this.socket) == null ? void 0 : _a.connected)) {
-        reject(new Error("Socket not connected"));
-        return;
-      }
-      let settled = false;
-      let cleanup = null;
-      let timeoutId;
-      const done = () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeoutId);
-        cleanup == null ? void 0 : cleanup();
-      };
-      const listener = (data) => {
-        done();
-        resolve(data);
-      };
-      const onDisconnect = () => {
-        var _a2;
-        done();
-        (_a2 = this.socket) == null ? void 0 : _a2.off("disconnect", onDisconnect);
-        reject(new Error("Socket disconnected while fetching notifications"));
-      };
-      cleanup = () => {
-        var _a2, _b;
-        (_a2 = this.socket) == null ? void 0 : _a2.off("notification:list", listener);
-        (_b = this.socket) == null ? void 0 : _b.off("disconnect", onDisconnect);
-      };
-      this.socket.on("notification:list", listener);
-      this.socket.on("disconnect", onDisconnect);
-      this.socket.emit("notification:list", {
-        channels,
-        origin: this.authManager.getOrigin(),
-        user_unique_code: userUniqueCode,
-        private: `${this.authManager.getOrigin()}:all:${userUniqueCode}`,
-        public: `${this.authManager.getOrigin()}:all`
-      });
-      timeoutId = setTimeout(() => {
-        done();
-        reject(new Error("getNotifications timeout"));
-      }, DEFAULT_TIMEOUT);
-    });
+    const data = {
+      channels,
+      origin: this.authManager.getOrigin(),
+      user_unique_code: userUniqueCode,
+      private: `${this.authManager.getOrigin()}:all:${userUniqueCode}`
+    };
+    return this.request("notification:list", data);
+  }
+  resolveChat(req) {
+    return this.request("chat:resolve", req);
+  }
+  sendChat(req) {
+    return this.request("chat:send", req);
+  }
+  deleteChat(req) {
+    return this.request("chat:delete", req);
   }
   async markAsRead(notifId, userId, origin) {
     return this.httpPost(
       `${this.getHttpBaseUrl()}/api/notification/${notifId}/read`,
-      {
-        user_id: userId,
-        origin: origin ?? this.authManager.getOrigin()
-      }
+      { user_id: userId, origin: origin ?? this.authManager.getOrigin() }
     );
   }
   async markAllAsRead(notifIds, userId, origin) {
     return this.httpPost(
       `${this.getHttpBaseUrl()}/api/notification/read-all`,
-      {
-        user_id: userId,
-        notif_ids: notifIds,
-        origin: origin ?? this.authManager.getOrigin()
-      }
+      { user_id: userId, notif_ids: notifIds, origin: origin ?? this.authManager.getOrigin() }
     );
   }
   async markAsDelete(notifId, userId, origin) {
     return this.httpPost(
       `${this.getHttpBaseUrl()}/api/notification/mark-as-delete/${notifId}`,
-      {
-        user_id: userId,
-        origin: origin ?? this.authManager.getOrigin()
-      }
+      { user_id: userId, origin: origin ?? this.authManager.getOrigin() }
     );
   }
   getHttpBaseUrl() {

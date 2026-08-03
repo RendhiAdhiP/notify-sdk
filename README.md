@@ -1,21 +1,21 @@
 # RWS SDK
 
-**RWS SDK** — Realtime WebSocket client untuk notifikasi, chat, dan event realtime multi-tenant.
-Membungkus komunikasi Socket.io dengan API yang sederhana, type-safe, dan framework-agnostic.
+**RWS SDK** — Realtime WebSocket client untuk notifikasi, chat, dan event realtime.
+Mengikuti standar payload `{ event, data, meta, error }` sesuai WebSocket Request & Response Standard.
 
 Package: `rws-js` | Exports class: `RWSClient`
 
 ## Fitur
 
--   Koneksi WebSocket dengan autentikasi otomatis (`project_token` + `origin`)
--   Subscribe / Unsubscribe ke channel notifikasi
--   Menerima notifikasi real-time via event listener
--   Fetch semua notifikasi (publik & private) dengan state read/delete
--   Mark as read, mark all as read, mark as delete
--   Auto-reconnect dengan exponential backoff
--   Manajemen token & origin
--   TypeScript first — full type definitions
--   Framework-agnostic — bisa digunakan di Next.js, React, Vue, atau vanilla JS
+- Koneksi WebSocket dengan autentikasi (`project_token`)
+- Subscribe / Unsubscribe room notifikasi
+- Notifikasi real-time via event listener
+- Fetch notifikasi dengan format standar (`notification_platforms` + `notification_channels`)
+- Chat: resolve, send, delete via WebSocket
+- Mark as read, mark all as read, mark as delete (via HTTP)
+- Auto-reconnect dengan exponential backoff
+- TypeScript — full type definitions
+- Framework-agnostic
 
 ## Instalasi
 
@@ -23,7 +23,7 @@ Package: `rws-js` | Exports class: `RWSClient`
 npm install github:RendhiAdhiP/rws-js
 ```
 
-Atau dari local package (development):
+Atau dari local package:
 
 ```bash
 npm install ../rws-js
@@ -45,35 +45,61 @@ client.on("notification", (notif) => {
   console.log("Notifikasi baru:", notif.title)
 })
 
-// Join channel
+// Join room
 client.join("regarmarket", "orders", "user123")
 
-// Fetch semua notifikasi
+// Fetch notifikasi
 const notifs = await client.getNotifications(["orders", "system"], "user123")
+console.log(notifs.total_notif, notifs.notification_platforms)
 ```
 
-## Dokumentasi Lengkap
+## Events
 
-- [INSTALL.md](docs/INSTALL.md) — Cara instalasi dan build
-- [USAGE.md](docs/USAGE.md) — Panduan penggunaan lengkap dengan contoh
-- [API.md](docs/API.md) — Dokumentasi API Reference
-- [CHANGELOG.md](docs/CHANGELOG.md) — Riwayat perubahan
+| Event | Payload | Deskripsi |
+|-------|---------|-----------|
+| `connect` | `void` | Terhubung ke server |
+| `disconnect` | `reason` | Terputus dari server |
+| `reconnecting` | `attempt` | Sedang mencoba reconnect |
+| `error` | `Error` | Error umum |
+| `notification` | `NotificationItem` | Notifikasi real-time baru |
+| `chat_updated` | `ChatRoom` | Chat diupdate |
+| `notification_list` | `NotificationListData` | Response fetch notifikasi |
+| `chat_resolve` | `ChatRoom` | Response resolve chat |
 
-## Struktur Project
+## API Methods
 
+| Method | Keterangan |
+|--------|------------|
+| `join(dest, channel, userCode?)` | Join room |
+| `leave(dest, channel, userCode?)` | Leave room |
+| `leaveAll()` | Leave semua room |
+| `getNotifications(channels, userCode)` | Fetch notifikasi → `Promise<NotificationListData>` |
+| `resolveChat(req)` | Resolve chat → `Promise<ChatRoom>` |
+| `sendChat(req)` | Kirim pesan → `Promise<ChatRoom>` |
+| `deleteChat(req)` | Hapus pesan → `Promise<ChatRoom>` |
+| `markAsRead(notifId, userId, origin?)` | Tandai dibaca |
+| `markAllAsRead(notifIds, userId, origin?)` | Tandai semua dibaca |
+| `markAsDelete(notifId, userId, origin?)` | Tandai dihapus |
+
+## Standar Payload
+
+Semua request dikirim dengan format:
+```json
+{ "event": "...", "data": {}, "meta": {}, "error": null }
 ```
-rws-js/
-├── src/
-│   ├── index.ts          # Entry point (exports RWSClient + types)
-│   ├── types/            # Type definitions (config, rws, events)
-│   ├── core/             # Core client, auth, reconnection
-│   ├── handlers/         # Event listener management
-│   ├── utils/            # Utilities & helpers
-│   └── config/           # Default configuration
-├── docs/                 # Documentation
-├── examples/             # Example implementations
-│   └── nextjs/           # Next.js example
-├── dist/                 # Build output
-├── package.json          # Package name: rws-js
-└── tsconfig.json
+
+Semua response diterima dengan format:
+```json
+{ "event": "...", "data": {}, "meta": {}, "error": null }
+```
+
+Error:
+```json
+{ "event": "...", "data": null, "meta": {}, "error": { "code": "...", "message": "..." } }
+```
+
+## Build
+
+```bash
+npm run build    # Output ke dist/
 ```

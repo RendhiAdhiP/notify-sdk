@@ -1,157 +1,152 @@
-"use client"
+'use client';
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useCallback,
-  type ReactNode,
-} from "react"
-import {
-  RWSClient,
-  type ConnectionState,
-  type RWSPayload,
-  type GetNotificationsResponse,
-} from "rws-js"
-import { getRWSClient } from "../lib/rws"
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { type ConnectionState, type NotificationItem, type NotificationListData, RWSClient } from 'rws-js';
+
+import { getRWSClient } from '../lib/rws';
 
 interface RWSContextValue {
-  client: RWSClient | null
-  connectionState: ConnectionState
-  notifications: RWSPayload[]
-  unreadCount: number
-  connect: (userUniqueCode: string) => void
-  disconnect: () => void
-  refresh: () => Promise<void>
-  markAsRead: (notifId: string) => Promise<void>
-  markAllAsRead: (notifIds: string[]) => Promise<void>
+    client: RWSClient | null;
+    connectionState: ConnectionState;
+    notifications: NotificationListData | null;
+    unreadCount: number;
+    connect: (userUniqueCode: string) => Promise<void>;
+    disconnect: () => void;
+    refresh: () => Promise<void>;
+    markAsRead: (notifId: string) => Promise<void>;
+    markAllAsRead: (notifIds: string[]) => Promise<void>;
 }
 
-const RWSContext = createContext<RWSContextValue | null>(null)
+const RWSContext = createContext<RWSContextValue | null>(null);
 
 export function useRWS(): RWSContextValue {
-  const ctx = useContext(RWSContext)
-  if (!ctx) {
-    throw new Error("useRWS must be used within RWSProvider")
-  }
-  return ctx
+    const ctx = useContext(RWSContext);
+    if (!ctx) {
+        throw new Error('useRWS must be used within RWSProvider');
+    }
+    return ctx;
 }
 
 interface Props {
-  children: ReactNode
-  channels: string[]
-  origin: string
+    children: ReactNode;
+    channels: string[];
+    origin: string;
 }
 
 export function RWSProvider({ children, channels, origin }: Props) {
-  const [client] = useState(() => getRWSClient())
-  const [connectionState, setConnectionState] =
-    useState<ConnectionState>("disconnected")
-  const [notifications, setNotifications] = useState<RWSPayload[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [userUniqueCode, setUserUniqueCode] = useState<string | null>(null)
+    const [client] = useState(() => getRWSClient());
+    const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
+    const [notifications, setNotifications] = useState<NotificationListData | null>(null);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [userUniqueCode, setUserUniqueCode] = useState<string | null>(null);
+    const userUniqueCodeRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    const unsub1 = client.on("connect", () => {
-      setConnectionState("connected")
-    })
-    const unsub2 = client.on("disconnect", () => {
-      setConnectionState("disconnected")
-    })
-    const unsub3 = client.on("reconnecting", () => {
-      setConnectionState("reconnecting")
-    })
-    const unsub4 = client.on("error", (err) => {
-      console.error("[RWS] Error:", err)
-    })
-    const unsub5 = client.on("notification", (notif) => {
-      setNotifications((prev) => [notif, ...prev])
-      setUnreadCount((prev) => prev + 1)
-    })
+    useEffect(() => {
+        const unsub1 = client.on('connect', () => {
+            setConnectionState('connected');
+        });
+        const unsub2 = client.on('disconnect', () => {
+            setConnectionState('disconnected');
+        });
+        const unsub3 = client.on('reconnecting', () => {
+            setConnectionState('reconnecting');
+        });
+        const unsub4 = client.on('error', (err) => {
+            console.error('[RWS] Error:', err);
+        });
+        const unsub5 = client.on('notification', (payload) => {
+            const notif = payload.data ?? (payload as unknown as NotificationItem);
+            refresh().catch((err) => console.error('[RWS] Refresh after new notification failed:', err));
+        });
 
-    return () => {
-      unsub1()
-      unsub2()
-      unsub3()
-      unsub4()
-      unsub5()
-    }
-  }, [client])
+        const unsub6 = client.on('notification_list', (data) => {
+            console.log('[RWS] Notification List:', data);
+            setNotifications(data);
+            setUnreadCount(data.total_unread ?? 0);
+        });
 
-  const connect = useCallback(
-    async (userId: string) => {
-      setUserUniqueCode(userId)
-      await client.connect()
 
-      for (const channel of channels) {
-        client.join(origin, channel, userId)
-      }
-    },
-    [client, channels, origin],
-  )
+        return () => {
+            unsub1();
+            unsub2();
+            unsub3();
+            unsub4();
+            unsub5();
+            unsub6();
+        };
+    }, [client]);
 
-  const disconnect = useCallback(() => {
-    client.leaveAll()
-    client.disconnect()
-    setNotifications([])
-    setUnreadCount(0)
-    setUserUniqueCode(null)
-  }, [client])
+    useEffect(() => {
+        if (notifications) {
+            setUnreadCount(notifications.total_unread ?? 0);
+        }
+        console.log('notifications', notifications);
+    }, [notifications]);
 
-  const refresh = useCallback(async () => {
-    if (!userUniqueCode) return
-    const result: GetNotificationsResponse = await client.getNotifications(
-      channels,
-      userUniqueCode,
-    )
-    setNotifications(
-      result.data.flatMap((g) => g.data.flatMap((d) => d.notif)),
-    )
-    setUnreadCount(result.total_unread)
-  }, [client, channels, userUniqueCode])
+    const connect = useCallback(
+        async (userId: string) => {
+            setUserUniqueCode(userId);
+            userUniqueCodeRef.current = userId;
+            await client.connect();
 
-  const markAsRead = useCallback(
-    async (notifId: string) => {
-      if (!userUniqueCode) return
-      await client.markAsRead(notifId, userUniqueCode)
-      setNotifications((prev) =>
-        prev.map((n) => (n._id === notifId ? { ...n, is_read: true } : n)),
-      )
-      setUnreadCount((prev) => Math.max(0, prev - 1))
-    },
-    [client, userUniqueCode],
-  )
+            for (const channel of channels) {
+                client.join(origin, channel, userId);
+            }
+        },
+        [client, channels, origin],
+    );
 
-  const markAllAsRead = useCallback(
-    async (notifIds: string[]) => {
-      if (!userUniqueCode) return
-      await client.markAllAsRead(notifIds, userUniqueCode)
-      setNotifications((prev) =>
-        prev.map((n) =>
-          notifIds.includes(n._id) ? { ...n, is_read: true } : n,
-        ),
-      )
-      setUnreadCount(0)
-    },
-    [client, userUniqueCode],
-  )
+    const disconnect = useCallback(() => {
+        client.leaveAll();
+        client.disconnect();
+        setNotifications(null);
+        setUnreadCount(0);
+        setUserUniqueCode(null);
+        userUniqueCodeRef.current = null;
+    }, [client]);
 
-  return (
-    <RWSContext.Provider
-      value={{
-        client,
-        connectionState,
-        notifications,
-        unreadCount,
-        connect,
-        disconnect,
-        refresh,
-        markAsRead,
-        markAllAsRead,
-      }}
-    >
-      {children}
-    </RWSContext.Provider>
-  )
+    const refresh = useCallback(async () => {
+        if (!userUniqueCodeRef.current) return;
+
+        const result = (await client.getNotifications(channels, userUniqueCodeRef.current)) as NotificationListData;
+
+        setNotifications(result);
+        setUnreadCount(result?.total_unread ?? 0);
+    }, [client, channels]);
+
+    const markAsRead = useCallback(
+        async (notifId: string) => {
+            if (!userUniqueCode) return;
+            await client.markAsRead(notifId, userUniqueCode);
+            refresh();
+        },
+        [client, userUniqueCode],
+    );
+
+    const markAllAsRead = useCallback(
+        async (notifIds: string[]) => {
+            if (!userUniqueCode) return;
+            await client.markAllAsRead(notifIds, userUniqueCode);
+            refresh();
+        },
+        [client, userUniqueCode],
+    );
+
+    return (
+        <RWSContext.Provider
+            value={{
+                client,
+                connectionState,
+                notifications,
+                unreadCount,
+                connect,
+                disconnect,
+                refresh,
+                markAsRead,
+                markAllAsRead,
+            }}
+        >
+            {children}
+        </RWSContext.Provider>
+    );
 }
