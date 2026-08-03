@@ -1,12 +1,11 @@
 {
   "name": "rws-js",
-  "version": "2.0.0",
-  "private": true,
-  "description": "RWS SDK — Realtime WebSocket client untuk notifikasi, chat, dan event realtime multi-tenant",
+  "version": "1.0.0",
+  "description": "Regar WebSocket client SDK - Standard payload wrapper untuk koneksi WebSocket Regarmarket",
   "type": "module",
-  "main": "dist/index.cjs",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,29 +14,27 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "scripts": {
-    "dev": "vite build --watch",
     "build": "vite build",
-    "typecheck": "tsc --noEmit",
+    "dev": "vite build --watch",
     "prepublishOnly": "npm run build"
   },
-  "dependencies": {
-    "socket.io-client": "^4.8.0"
-  },
+  "keywords": [
+    "websocket",
+    "socket.io",
+    "regarmarket",
+    "realtime"
+  ],
+  "license": "MIT",
   "devDependencies": {
     "typescript": "^5.5.0",
     "vite": "^6.0.0",
     "vite-plugin-dts": "^4.0.0"
   },
-  "keywords": [
-    "rws",
-    "websocket",
-    "socket.io",
-    "realtime",
-    "chat",
-    "sdk"
-  ],
-  "license": "MIT"
+  "dependencies": {
+    "socket.io-client": "^4.8.1"
+  }
 }

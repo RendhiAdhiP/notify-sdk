@@ -1,4 +1,4 @@
-import { RWSConfig, ConnectionState, GetNotificationsResponse, ApiResponse, RWSEventName, RWSEventListener } from '../types';
+import { RWSConfig, ConnectionState, NotificationListData, ChatRoom, ChatResolveRequest, ChatSendRequest, ChatDeleteRequest, ApiResponse, RWSEventName, RWSEventListener } from '../types';
 export declare class RWSClient {
     private socket;
     private config;
@@ -11,12 +11,18 @@ export declare class RWSClient {
     private destroyed;
     private connectPromise;
     private isBrowser;
+    private pendingRequests;
     constructor(config: RWSConfig);
     get connectionState(): ConnectionState;
     get serverUrl(): string;
     get origin(): string;
     private setState;
     private cleanupSocket;
+    private wrapPayload;
+    private resolvePending;
+    private rejectPending;
+    private rejectAllPending;
+    private request;
     connect(): Promise<void>;
     private handleReconnect;
     private rejoinRooms;
@@ -27,7 +33,10 @@ export declare class RWSClient {
     leaveAll(): void;
     on<E extends RWSEventName>(event: E, listener: RWSEventListener<E>): () => void;
     off<E extends RWSEventName>(event: E, listener: RWSEventListener<E>): void;
-    getNotifications(channels: string[], userUniqueCode: string): Promise<GetNotificationsResponse>;
+    getNotifications(channels: string[], userUniqueCode: string): Promise<NotificationListData>;
+    resolveChat(req: ChatResolveRequest): Promise<ChatRoom>;
+    sendChat(req: ChatSendRequest): Promise<ChatRoom>;
+    deleteChat(req: ChatDeleteRequest): Promise<ChatRoom>;
     markAsRead(notifId: string, userId: string, origin?: string): Promise<ApiResponse>;
     markAllAsRead(notifIds: string[], userId: string, origin?: string): Promise<ApiResponse>;
     markAsDelete(notifId: string, userId: string, origin?: string): Promise<ApiResponse>;

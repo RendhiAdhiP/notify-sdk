@@ -6,7 +6,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <RWSProvider
-          channels={["orders", "system", "messages"]}
+          channels={["all", "promo", "messages"]}
           origin={process.env.NEXT_PUBLIC_RWS_ORIGIN!}
         >
           {children}

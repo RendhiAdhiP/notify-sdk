@@ -2,20 +2,33 @@ import { io, Socket } from "socket.io-client"
 import type {
   RWSConfig,
   ConnectionState,
-  RWSPayload,
-  GetNotificationsResponse,
+  NotificationListData,
+  NotificationItem,
+  ChatRoom,
+  ChatResolveRequest,
+  ChatSendRequest,
+  ChatDeleteRequest,
+  GetNotificationsRequest,
   MarkReadRequest,
   MarkAllReadRequest,
   MarkDeleteRequest,
   ApiResponse,
   RWSEventName,
   RWSEventListener,
+  StandardPayload,
+  RWSPayload,
 } from "../types"
 import { DEFAULT_TIMEOUT } from "../config/default"
 import { AuthManager } from "./auth"
 import { ReconnectionManager } from "./reconnection"
 import { EventHandler } from "../handlers"
 import { RWSLogger } from "../utils/logger"
+
+let requestIdCounter = 0
+
+function nextRequestId(): string {
+  return `req_${Date.now()}_${++requestIdCounter}`
+}
 
 export class RWSClient {
   private socket: Socket | null = null
@@ -29,6 +42,7 @@ export class RWSClient {
   private destroyed = false
   private connectPromise: Promise<void> | null = null
   private isBrowser: boolean
+  private pendingRequests = new Map<string, { resolve: (data: unknown) => void; reject: (err: Error) => void; timer: ReturnType<typeof setTimeout> }>()
 
   constructor(config: RWSConfig) {
     this.config = config
@@ -72,6 +86,64 @@ export class RWSClient {
     }
   }
 
+  private wrapPayload<T>(event: string, data: T, meta: Record<string, unknown> = {}): StandardPayload<T> {
+    return {
+      event,
+      data,
+      meta,
+      error: null,
+    }
+  }
+
+  private resolvePending(requestId: string, data: unknown): void {
+    const entry = this.pendingRequests.get(requestId)
+    if (!entry) return
+    clearTimeout(entry.timer)
+    this.pendingRequests.delete(requestId)
+    entry.resolve(data)
+  }
+
+  private rejectPending(requestId: string, error: Error): void {
+    const entry = this.pendingRequests.get(requestId)
+    if (!entry) return
+    clearTimeout(entry.timer)
+    this.pendingRequests.delete(requestId)
+    entry.reject(error)
+  }
+
+  private rejectAllPending(error: Error): void {
+    for (const [, entry] of this.pendingRequests) {
+      clearTimeout(entry.timer)
+      entry.reject(error)
+    }
+    this.pendingRequests.clear()
+  }
+
+  private request<T>(event: string, data: unknown, meta: Record<string, unknown> = {}): Promise<T> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket?.connected) {
+        reject(new Error("Socket not connected"))
+        return
+      }
+
+      const requestId = nextRequestId()
+      const payload = this.wrapPayload(event, data, { ...meta, request_id: requestId })
+      console.log(payload)
+      const timer = setTimeout(() => {
+        this.pendingRequests.delete(requestId)
+        reject(new Error(`Request timeout: ${event}`))
+      }, this.config.timeout ?? DEFAULT_TIMEOUT)
+
+      this.pendingRequests.set(requestId, {
+        resolve: resolve as (data: unknown) => void,
+        reject,
+        timer,
+      })
+
+      this.socket.emit(event, payload)
+    })
+  }
+
   async connect(): Promise<void> {
     if (!this.isBrowser) {
       const err = new Error("WebSocket not available in server-side rendering")
@@ -79,19 +151,13 @@ export class RWSClient {
       return Promise.reject(err)
     }
 
-    if (this.socket?.connected) {
-      return
-    }
+    if (this.socket?.connected) return
 
-    if (this.connectPromise) {
-      return this.connectPromise
-    }
+    if (this.connectPromise) return this.connectPromise
 
     this.destroyed = false
 
-    if (this.socket) {
-      this.cleanupSocket()
-    }
+    if (this.socket) this.cleanupSocket()
 
     this.setState("connecting")
     this.logger.info(`Connecting to ${this.config.serverUrl}`)
@@ -140,8 +206,43 @@ export class RWSClient {
           this.eventHandler.emit("error", err)
         })
 
-        this.socket.on("notification:new", (notification: RWSPayload) => {
-          this.eventHandler.emit("notification", notification)
+        this.socket.onAny((event, payload: StandardPayload) => {
+          if (!payload) return
+
+          const requestId = payload.meta?.request_id as string | undefined
+
+          if (payload.error) {
+            if (requestId) {
+              const err = new Error(payload.error.message)
+              err.name = payload.error.code
+              this.rejectPending(requestId, err)
+            }
+            if (event === "room:join") this.eventHandler.emit("room_join_error", payload.error)
+            if (event === "room:leave") this.eventHandler.emit("room_leave_error", payload.error)
+            return
+          }
+
+          if (requestId) {
+            this.resolvePending(requestId, payload.data)
+          }
+
+          switch (event) {
+            case "notification:new":
+              this.eventHandler.emit(
+                "notification",
+                payload as RWSPayload<NotificationItem>,
+              )
+              break
+            case "chat:updated":
+              this.eventHandler.emit("chat_updated", payload.data as ChatRoom)
+              break
+            case "notification:list":
+              this.eventHandler.emit("notification_list", payload.data as NotificationListData)
+              break
+            case "chat:resolve":
+              this.eventHandler.emit("chat_resolve", payload.data as ChatRoom)
+              break
+          }
         })
       } catch (err) {
         clearTimeout(timeout)
@@ -172,7 +273,7 @@ export class RWSClient {
     if (this.joinedRooms.size === 0) return
     this.logger.info(`Rejoining ${this.joinedRooms.size} room(s)`)
     for (const room of this.joinedRooms) {
-      this.socket?.emit("room:join", room)
+      this.socket?.emit("room:join", this.wrapPayload("room:join", { room }))
     }
   }
 
@@ -181,6 +282,7 @@ export class RWSClient {
     this.connectPromise = null
     this.reconnectionManager.cancel()
     this.joinedRooms.clear()
+    this.rejectAllPending(new Error("Disconnected"))
     this.cleanupSocket()
     this.setState("disconnected")
     this.logger.info("Disconnected")
@@ -193,32 +295,24 @@ export class RWSClient {
 
   join(destination: string, channel: string, userUniqueCode?: string): void {
     const rooms: string[] = [`${destination}:${channel}`]
-
-    if (userUniqueCode) {
-      rooms.push(`${destination}:${channel}:${userUniqueCode}`)
-    }
+    if (userUniqueCode) rooms.push(`${destination}:${channel}:${userUniqueCode}`)
 
     for (const room of rooms) {
       this.joinedRooms.add(room)
-
       if (this.socket?.connected) {
-        this.socket.emit("room:join", room)
+        this.socket.emit("room:join", this.wrapPayload("room:join", { room }))
       }
     }
   }
 
   leave(destination: string, channel: string, userUniqueCode?: string): void {
     const rooms: string[] = [`${destination}:${channel}`]
-
-    if (userUniqueCode) {
-      rooms.push(`${destination}:${channel}:${userUniqueCode}`)
-    }
+    if (userUniqueCode) rooms.push(`${destination}:${channel}:${userUniqueCode}`)
 
     for (const room of rooms) {
       this.joinedRooms.delete(room)
-
       if (this.socket?.connected) {
-        this.socket.emit("room:leave", room)
+        this.socket.emit("room:leave", this.wrapPayload("room:leave", { room }))
       }
     }
   }
@@ -226,121 +320,61 @@ export class RWSClient {
   leaveAll(): void {
     for (const room of this.joinedRooms) {
       if (this.socket?.connected) {
-        this.socket.emit("room:leave", room)
+        this.socket.emit("room:leave", this.wrapPayload("room:leave", { room }))
       }
     }
     this.joinedRooms.clear()
   }
 
-  on<E extends RWSEventName>(
-    event: E,
-    listener: RWSEventListener<E>,
-  ): () => void {
+  on<E extends RWSEventName>(event: E, listener: RWSEventListener<E>): () => void {
     return this.eventHandler.on(event, listener)
   }
 
-  off<E extends RWSEventName>(
-    event: E,
-    listener: RWSEventListener<E>,
-  ): void {
+  off<E extends RWSEventName>(event: E, listener: RWSEventListener<E>): void {
     this.eventHandler.off(event, listener)
   }
 
-  getNotifications(
-    channels: string[],
-    userUniqueCode: string,
-  ): Promise<GetNotificationsResponse> {
-    return new Promise((resolve, reject) => {
-      if (!this.socket?.connected) {
-        reject(new Error("Socket not connected"))
-        return
-      }
+  getNotifications(channels: string[], userUniqueCode: string): Promise<NotificationListData> {
+    const data: GetNotificationsRequest = {
+      channels,
+      origin: this.authManager.getOrigin(),
+      user_unique_code: userUniqueCode,
+      private: `${this.authManager.getOrigin()}:all:${userUniqueCode}`,
+    }
 
-      let settled = false
-      let cleanup: (() => void) | null = null
-      let timeoutId: ReturnType<typeof setTimeout>
-
-      const done = () => {
-        if (settled) return
-        settled = true
-        clearTimeout(timeoutId)
-        cleanup?.()
-      }
-
-      const listener = (data: unknown) => {
-        done()
-        resolve(data as GetNotificationsResponse)
-      }
-
-      const onDisconnect = () => {
-        done()
-        this.socket?.off("disconnect", onDisconnect)
-        reject(new Error("Socket disconnected while fetching notifications"))
-      }
-
-      cleanup = () => {
-        this.socket?.off("notification:list", listener)
-        this.socket?.off("disconnect", onDisconnect)
-      }
-
-      this.socket.on("notification:list", listener)
-      this.socket.on("disconnect", onDisconnect)
-
-      this.socket.emit("notification:list", {
-        channels,
-        origin: this.authManager.getOrigin(),
-        user_unique_code: userUniqueCode,
-        private: `${this.authManager.getOrigin()}:all:${userUniqueCode}`,
-        public: `${this.authManager.getOrigin()}:all`,
-      })
-
-      timeoutId = setTimeout(() => {
-        done()
-        reject(new Error("getNotifications timeout"))
-      }, DEFAULT_TIMEOUT)
-    })
+    return this.request<NotificationListData>("notification:list", data)
   }
 
-  async markAsRead(
-    notifId: string,
-    userId: string,
-    origin?: string,
-  ): Promise<ApiResponse> {
+  resolveChat(req: ChatResolveRequest): Promise<ChatRoom> {
+    return this.request<ChatRoom>("chat:resolve", req)
+  }
+
+  sendChat(req: ChatSendRequest): Promise<ChatRoom> {
+    return this.request<ChatRoom>("chat:send", req)
+  }
+
+  deleteChat(req: ChatDeleteRequest): Promise<ChatRoom> {
+    return this.request<ChatRoom>("chat:delete", req)
+  }
+
+  async markAsRead(notifId: string, userId: string, origin?: string): Promise<ApiResponse> {
     return this.httpPost<ApiResponse>(
       `${this.getHttpBaseUrl()}/api/notification/${notifId}/read`,
-      {
-        user_id: userId,
-        origin: origin ?? this.authManager.getOrigin(),
-      } satisfies MarkReadRequest,
+      { user_id: userId, origin: origin ?? this.authManager.getOrigin() } satisfies MarkReadRequest,
     )
   }
 
-  async markAllAsRead(
-    notifIds: string[],
-    userId: string,
-    origin?: string,
-  ): Promise<ApiResponse> {
+  async markAllAsRead(notifIds: string[], userId: string, origin?: string): Promise<ApiResponse> {
     return this.httpPost<ApiResponse>(
       `${this.getHttpBaseUrl()}/api/notification/read-all`,
-      {
-        user_id: userId,
-        notif_ids: notifIds,
-        origin: origin ?? this.authManager.getOrigin(),
-      } satisfies MarkAllReadRequest,
+      { user_id: userId, notif_ids: notifIds, origin: origin ?? this.authManager.getOrigin() } satisfies MarkAllReadRequest,
     )
   }
 
-  async markAsDelete(
-    notifId: string,
-    userId: string,
-    origin?: string,
-  ): Promise<ApiResponse> {
+  async markAsDelete(notifId: string, userId: string, origin?: string): Promise<ApiResponse> {
     return this.httpPost<ApiResponse>(
       `${this.getHttpBaseUrl()}/api/notification/mark-as-delete/${notifId}`,
-      {
-        user_id: userId,
-        origin: origin ?? this.authManager.getOrigin(),
-      } satisfies MarkDeleteRequest,
+      { user_id: userId, origin: origin ?? this.authManager.getOrigin() } satisfies MarkDeleteRequest,
     )
   }
 
