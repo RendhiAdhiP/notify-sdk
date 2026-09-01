@@ -128,7 +128,7 @@ export class RWSClient {
 
       const requestId = nextRequestId()
       const payload = this.wrapPayload(event, data, { ...meta, request_id: requestId })
-      console.log(payload)
+      // console.log(payload)
       const timer = setTimeout(() => {
         this.pendingRequests.delete(requestId)
         reject(new Error(`Request timeout: ${event}`))
